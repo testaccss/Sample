@@ -76,7 +76,6 @@ class CustomEvalFn:
                 return score
             else:
                 return score 			
-            
 
 
 class CustomPlayer:
@@ -89,7 +88,7 @@ class CustomPlayer:
     to make sure it properly uses minimax
     and alpha-beta to return a good move."""
 
-    def __init__(self, search_depth=5, eval_fn=OpenMoveEvalFn()):
+    def __init__(self, search_depth=3, eval_fn=CustomEvalFn()):
         """Initializes your player.
 
         if you find yourself with a superior eval function, update the default
@@ -151,7 +150,8 @@ class CustomPlayer:
         Returns:
             (tuple): best_move
         """
-        func = self.alphabeta
+        func = self.minimax
+        print legal_moves
         if game.move_count == 0:
            self.first_player = True; 
            best_move = (int(math.ceil(game.width / 2)), int(math.ceil(game.height / 2)))	
@@ -190,6 +190,7 @@ class CustomPlayer:
                         return rand_move
         else:
             best_move, utility = func(game, time_left, depth=self.search_depth)
+            print 'out from func', best_move, utility
         # change minimax to alphabeta after completing alphabeta part of assignment
         return best_move
 
@@ -199,12 +200,16 @@ class CustomPlayer:
 
     def utility_custom(self, game, maximizing_player, depth):
 
+        print 'Utility:', maximizing_player
+        print game.get_legal_moves()
         if maximizing_player:
             if len(game.get_legal_moves()) == 0:
-                return (-100 * (depth + 1))
+                print 'Max: game.get_legal_moves()'
+                return (-100 * (depth+1)) #float("inf")
         else: 
             if len(game.get_legal_moves()) == 0:
-                return (100 * (depth + 1))
+                print 'Min: game.get_legal_moves()'
+                return (100 * (depth+1)) #float("-inf")
 
         return self.eval_fn.score(game, maximizing_player)
 
@@ -227,22 +232,33 @@ class CustomPlayer:
 
         # TODO: finish this function!
         legal_moves = game.get_legal_moves()
-        if depth == 0 or not legal_moves or time_left() < 50:
+        if depth == 0 or not legal_moves or time_left() < 100:
+            print 'Inside return'
+            print 'last queen:',game.__last_queen_move__, 'legal_moves:', legal_moves, 'depth:', depth 			
             return None, best_score
+        print 'Depth:', depth
         if maximizing_player:
+            print 'Max:'
             best_score = float('-inf')
             for move in legal_moves:
                 next_move = game.forecast_move(move)
+                print move, '->', next_move.__last_queen_move__
                 _, score = self.minimax(next_move, time_left, depth - 1, False)
+                print move, '->', next_move.get_legal_moves(), 'score:', score
                 if score > best_score:
+                    print 'Previous best:', best_score, 'Current:', score
                     best_score = score
                     best_move = move
         else:
+            print 'Min'
             best_score = float('inf')
             for move in legal_moves:
                 next_move = game.forecast_move(move)
+                print move, '->', next_move.__last_queen_move__
                 _, score = self.minimax(next_move, time_left, depth - 1, True)
+                print move, '->', next_move.get_legal_moves(), 'score:', score
                 if score < best_score:
+                    print 'Previous best:', best_score, 'Current:', score
                     best_score = score
                     best_move = move
 
@@ -285,7 +301,7 @@ class CustomPlayer:
         # raise NotImplementedError
         
         best_move = (-1, -1)
-        best_score = self.utility_custom(game, maximizing_player, depth)
+        best_score = self.utility_custom(game, maximizing_player)
 
         # TODO: finish this function!
         legal_moves = game.get_legal_moves()
