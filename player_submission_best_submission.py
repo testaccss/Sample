@@ -86,31 +86,19 @@ class CustomEvalFn:
         # raise NotImplementedError
         score = len(game.get_legal_moves())
         if maximizing_player_turn:
-            if game.move_count > 30:
+            if game.move_count > 25:
                 moves_left = self.get_moves_left(game)
                 if moves_left + game.move_count != game.width * game.height:
                     if moves_left % 2 == 0:
                         return -100
                     else:
-                        #print 'In Max:', game.__last_queen_move__
                         return 100
                 else:
                     return score
             else:
                 return score
         else:
-            if game.move_count > 30:
-                moves_left = self.get_moves_left(game)
-                if moves_left + game.move_count != game.width * game.height:
-                    if moves_left % 2 == 0:
-                        return 100
-                    else:
-                        #print 'In Min:', game.__last_queen_move__
-                        return -100
-                else:
-                    return score
-            else:
-                return score
+            return score
 
 
 class CustomPlayer:
