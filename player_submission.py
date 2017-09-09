@@ -86,7 +86,7 @@ class CustomEvalFn:
         # raise NotImplementedError
         score = len(game.get_legal_moves())
         if maximizing_player_turn:
-            if game.move_count > 30:
+            if game.move_count > 5:
                 moves_left = self.get_moves_left(game)
                 if moves_left + game.move_count != game.width * game.height:
                     if moves_left % 2 == 0:
@@ -99,7 +99,7 @@ class CustomEvalFn:
             else:
                 return score
         else:
-            if game.move_count > 30:
+            if game.move_count > 5:
                 moves_left = self.get_moves_left(game)
                 if moves_left + game.move_count != game.width * game.height:
                     if moves_left % 2 == 0:
@@ -123,7 +123,7 @@ class CustomPlayer:
     to make sure it properly uses minimax
     and alpha-beta to return a good move."""
 
-    def __init__(self, search_depth=5, eval_fn=CustomEvalFn()):
+    def __init__(self, search_depth=3, eval_fn=CustomEvalFn()):
         """Initializes your player.
 
         if you find yourself with a superior eval function, update the default
@@ -185,9 +185,9 @@ class CustomPlayer:
         Returns:
             (tuple): best_move
         """
-        func = self.alphabeta
+        func = self.minimax
         if game.move_count == 0:
-            self.first_player = True;
+            self.first_player = True
             best_move = (int(math.ceil(game.width / 2)), int(math.ceil(game.height / 2)))
         elif game.move_count == 1:  # else part implies that my agent is playing second.
             center_move = (int(math.ceil(game.width / 2)), int(math.ceil(game.height / 2)))
@@ -199,66 +199,17 @@ class CustomPlayer:
                     best_move = self.get_predefined_moves(game, legal_moves)
                 else:
                     best_move = self.get_non_reflective_moves(game, legal_moves)
-        elif game.move_count < 4:
-            if len(legal_moves) > 0:
-                if self.second_player_queen_center:
-                    nr_move = self.get_non_reflective_moves(game, legal_moves)
-                    if nr_move:
-                        return nr_move
-                    else:
-                        r_move = self.mirrored_move(game, legal_moves)
-                        if r_move:
-                            return r_move
-                        else:
-                            rand_move = legal_moves[randint(0, len(legal_moves) - 1)]
-                            return rand_move
-                else:
-                    r_move = self.mirrored_move(game, legal_moves)
-                    if r_move:
-                        return r_move
-                    else:
-                        nr_move = self.get_non_reflective_moves(game, legal_moves)
-                        if nr_move:
-                            return nr_move
-                        else:
-                            rand_move = legal_moves[randint(0, len(legal_moves) - 1)]
-                            return rand_move
-            else:
-                return None
         else:
-            #depth = self.get_iterative_depth(game, legal_moves)
-            #self.search_depth = depth
             # print 'Move:', game.move_count, 'Depth:', depth, 'len:', len(legal_moves)
-            best_move, utility = func(game, time_left, depth=self.search_depth)
-        # change minimax to alphabeta after completing alphabeta part of assignment
+            #print 'Time Left:', time_left()
+            best_move = (-1,-1)
+            end_depth = game.width * game.height - game.move_count
+            for depth in range(1,8):
+                best_move, utility = func(game, time_left, depth=depth)
+                if time_left() < 50:
+                    break
+            # change minimax to alphabeta after completing alphabeta part of assignment
         return best_move
-
-    def get_iterative_depth(self, game, legal_moves):
-
-        len_moves = len(legal_moves)
-        move_count = game.move_count
-        if move_count > 30 and len_moves < 5:
-            return 12
-        elif game.move_count > 30 and len_moves < 9:
-            return 10
-        elif game.move_count > 30 and len_moves > 8:
-            return 7
-        elif move_count > 25 and len_moves < 5:
-            return 11
-        elif move_count > 25 and len_moves < 9:
-            return 8
-        elif move_count > 25 and len_moves > 8:
-            return 5
-        elif move_count > 20 and len_moves < 5:
-            return 7
-        elif move_count > 20 and len_moves > 4:
-            return 6
-        elif move_count > 10:
-            return 5
-        elif move_count > 5:
-            return 4
-        else:
-            return 3
 
     def utility(self, game, maximizing_player=True):
         """Can be updated if desired"""
@@ -267,15 +218,15 @@ class CustomPlayer:
     def utility_custom(self, game, maximizing_player, depth, len_moves):
 
         #print 'Utility:', maximizing_player
-        #print game.get_legal_moves()   
+        #print game.get_legal_moves()
         if maximizing_player:
             if len_moves == 0:
-                #print 'Max: game.get_legal_moves()' 
-                return (-100 * (depth + 1))
+                #print 'Max: game.get_legal_moves()'
+                return -200 # * (depth + 1))
         else:
             if len_moves == 0:
                 #print 'Min: game.get_legal_moves()'
-                return (100 * (depth + 1))
+                return 200 # * (depth + 1))
 
         return self.eval_fn.score(game, maximizing_player)
 
@@ -295,16 +246,13 @@ class CustomPlayer:
         # raise NotImplementedError
         legal_moves = game.get_legal_moves()
         len_moves = len(legal_moves)
-        if len_moves > 0:
-            best_move = legal_moves[0]
-        else:
-            best_move = (-1, -1)
+        best_move = (-1, -1)
         best_score = self.utility_custom(game, maximizing_player, depth, len(legal_moves))
 
         # TODO: finish this function!
-        if depth == 0 or not legal_moves or time_left() < 50:
+        if depth == 0 or not legal_moves or time_left() < 20:
             #print 'Inside return'
-            #print 'last queen:',game.__last_queen_move__, 'legal_moves:', legal_moves, 'depth:', depth 			 
+            #print 'last queen:',game.__last_queen_move__, 'legal_moves:', legal_moves, 'depth:', depth
             return None, best_score
         if maximizing_player:
             best_score = float('-inf')
@@ -363,11 +311,8 @@ class CustomPlayer:
         # raise NotImplementedError
         legal_moves = game.get_legal_moves()
         len_moves = len(legal_moves)
-        if len_moves > 0:
-            best_move = legal_moves[0]
-        else:
-            best_move = (-1, -1)
-        best_score = self.utility_custom(game, maximizing_player, depth, len(legal_moves))
+        best_move = (-1, -1)
+        best_score = self.utility_custom(game, maximizing_player, depth, len_moves)
 
         # TODO: finish this function!
         if depth == 0 or not legal_moves or time_left() < 20:
@@ -376,7 +321,7 @@ class CustomPlayer:
             return best_move, best_score
         #print 'Depth:', depth
         if maximizing_player:
-            #print 'Max:' 
+            #print 'Max:'
             best_score = float("-inf")
             for move in legal_moves:
                 next_move = game.forecast_move(move)
@@ -390,7 +335,7 @@ class CustomPlayer:
                     return best_move, best_score
                 alpha = max(alpha, best_score)
         else:
-            #print 'Min:' 
+            #print 'Min:'
             best_score = float("inf")
             for move in legal_moves:
                 next_move = game.forecast_move(move)
