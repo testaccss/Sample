@@ -138,6 +138,7 @@ class CustomPlayer:
         # If False --> My AI agent is playing second, else first
         self.first_player = False
         self.second_player_queen_center = False
+        self.expection_raised = False
 
     def get_blank_spaces(self, game):
         """
@@ -199,13 +200,48 @@ class CustomPlayer:
                     best_move = self.get_predefined_moves(game, legal_moves)
                 else:
                     best_move = self.get_non_reflective_moves(game, legal_moves)
+        elif game.move_count < 4:
+            if len(legal_moves) > 0:
+                if self.second_player_queen_center:
+                    nr_move = self.get_non_reflective_moves(game, legal_moves)
+                    if nr_move:
+                        return nr_move
+                    else:
+                        r_move = self.mirrored_move(game, legal_moves)
+                        if r_move:
+                            return r_move
+                        else:
+                            rand_move = legal_moves[randint(0, len(legal_moves) - 1)]
+                            return rand_move
+                else:
+                    r_move = self.mirrored_move(game, legal_moves)
+                    if r_move:
+                        return r_move
+                    else:
+                        nr_move = self.get_non_reflective_moves(game, legal_moves)
+                        if nr_move:
+                            return nr_move
+                        else:
+                            rand_move = legal_moves[randint(0, len(legal_moves) - 1)]
+                            return rand_move
+            else:
+                return None
         else:
             # print 'Move:', game.move_count, 'Depth:', depth, 'len:', len(legal_moves)
             #print 'Time Left:', time_left()
             best_move = (-1,-1)
             end_depth = game.width * game.height - game.move_count
-            for depth in range(1,8):
+            self.expection_raised = False
+            for depth in range(1,5):
                 best_move, utility = func(game, time_left, depth=depth)
+                #print game.move_count, depth, best_move, utility
+                if depth != 1 and prev_best_move == best_move and prev_utility == utility:
+                    break
+                if self.expection_raised:
+                    best_move, utility = prev_best_move, prev_utility
+                    #print 'except raised', depth, best_move, utility
+                else:
+                    prev_best_move, prev_utility = best_move, utility
                 if time_left() < 50:
                     break
             # change minimax to alphabeta after completing alphabeta part of assignment
@@ -249,8 +285,10 @@ class CustomPlayer:
         best_move = (-1, -1)
         best_score = self.utility_custom(game, maximizing_player, depth, len(legal_moves))
 
-        # TODO: finish this function!
-        if depth == 0 or not legal_moves or time_left() < 20:
+        if time_left() < 50:
+            self.expection_raised = True
+            return best_move, best_score
+        if depth == 0 or not legal_moves:
             #print 'Inside return'
             #print 'last queen:',game.__last_queen_move__, 'legal_moves:', legal_moves, 'depth:', depth
             return None, best_score
@@ -277,7 +315,7 @@ class CustomPlayer:
         if game.width == 7 and game.height == 7:
             moves = [(0, 1), (0, 2), (0, 4), (0, 5), (1, 0), (1, 6), (2, 0), (2, 6), (4, 0), (4, 6), (5, 0), (5, 6),
                      (6, 1), (6, 2), (6, 4), (6, 5), (1, 2), (1, 4), (2, 1), (2, 5), (4, 1), (4, 5), (5, 2), (5, 4)]
-        elif game.width == 7 and game.height == 5:
+        elif game.width == 5 and game.height == 5:
             moves = [(0, 1), (0, 3), (1, 0), (1, 4), (3, 0), (3, 4), (4, 1), (4, 3)]
         else:
             return None
@@ -288,9 +326,70 @@ class CustomPlayer:
         return None
 
     def get_predefined_moves(self, game, legal_moves):
-        moves = [(1, 1), (1, game.width - 2), (game.height - 2, 1), (game.height - 2, game.height - 2)]
+        moves = [(2, 3), (3, 2), (3, 4), (4,3)]
         shuffle(moves)
         return moves[0]
+
+    def alphabeta_id(self, game, time_left, depth=3, alpha=float("-inf"), beta=float("inf"),
+                  maximizing_player=True):
+        """Implementation of the alphabeta algorithm
+
+        Args:
+            game (Board): A board and game state.
+            time_left (function): Used to determine time left before timeout
+            depth: Used to track how deep you are in the search tree
+            alpha (float): Alpha value for pruning
+            beta (float): Beta value for pruning
+            maximizing_player (bool): True if maximizing player is active.
+
+        Returns:
+            (tuple, int): best_move, best_val
+        """
+        # TODO: finish this function!
+        # raise NotImplementedError
+        legal_moves = game.get_legal_moves()
+        len_moves = len(legal_moves)
+        best_move = (-1, -1)
+        best_score = self.utility_custom(game, maximizing_player, depth, len_moves)
+
+        if time_left() < 50:
+            self.expection_raised = True
+            return best_move, best_score
+        if depth == 0 or not legal_moves:
+            #print 'Inside return'
+            #print 'last queen:',game.__last_queen_move__, 'legal_moves:', legal_moves, 'depth:', depth
+            return best_move, best_score
+        #print 'Depth:', depth
+        if maximizing_player:
+            #print 'Max:'
+            best_score = float("-inf")
+            for move in legal_moves:
+                next_move = game.forecast_move(move)
+                #print move, '->', next_move.__last_queen_move__
+                _, score = self.alphabeta_id(next_move, time_left, depth - 1, alpha, beta, False)
+                #print move, '->', next_move.get_legal_moves(), 'score:', score
+                if score > best_score:
+                    best_score = score
+                    best_move = move
+                if best_score >= beta:
+                    return best_move, best_score
+                alpha = max(alpha, best_score)
+        else:
+            #print 'Min:'
+            best_score = float("inf")
+            for move in legal_moves:
+                next_move = game.forecast_move(move)
+                #print move, '->', next_move.__last_queen_move__
+                _, score = self.alphabeta_id(next_move, time_left, depth - 1, alpha, beta, True)
+                #print move, '->', next_move.get_legal_moves(), 'score:', score
+                if score < best_score:
+                    best_score = score
+                    best_move = move
+                if alpha >= best_score:
+                    return best_move, best_score
+                beta = min(beta, best_score)
+
+        return best_move, best_score
 
     def alphabeta(self, game, time_left, depth=3, alpha=float("-inf"), beta=float("inf"),
                   maximizing_player=True):
