@@ -112,6 +112,8 @@ class CustomEvalFn:
             else:
                 return score
 
+class Timeout(Exception):
+    pass
 
 class CustomPlayer:
     # TODO: finish this class!
@@ -123,7 +125,7 @@ class CustomPlayer:
     to make sure it properly uses minimax
     and alpha-beta to return a good move."""
 
-    def __init__(self, search_depth=3, eval_fn=CustomEvalFn()):
+    def __init__(self, search_depth=4, eval_fn=CustomEvalFn()):
         """Initializes your player.
 
         if you find yourself with a superior eval function, update the default
@@ -231,19 +233,12 @@ class CustomPlayer:
             #print 'Time Left:', time_left()
             best_move = (-1,-1)
             end_depth = game.width * game.height - game.move_count
-            self.expection_raised = False
-            for depth in range(1,5):
-                best_move, utility = func(game, time_left, depth=depth)
-                #print game.move_count, depth, best_move, utility
-                if depth != 1 and prev_best_move == best_move and prev_utility == utility:
-                    break
-                if self.expection_raised:
-                    best_move, utility = prev_best_move, prev_utility
-                    #print 'except raised', depth, best_move, utility
-                else:
-                    prev_best_move, prev_utility = best_move, utility
-                if time_left() < 50:
-                    break
+            try:
+                for depth in range(1, end_depth):
+                    best_move, utility = func(game, time_left, depth=depth)
+                    #print depth
+            except Timeout:
+                    pass
             # change minimax to alphabeta after completing alphabeta part of assignment
         return best_move
 
@@ -283,11 +278,11 @@ class CustomPlayer:
         legal_moves = game.get_legal_moves()
         len_moves = len(legal_moves)
         best_move = (-1, -1)
-        best_score = self.utility_custom(game, maximizing_player, depth, len(legal_moves))
+        best_score = self.utility_custom(game, maximizing_player, depth, len_moves)
 
-        if time_left() < 50:
-            self.expection_raised = True
-            return best_move, best_score
+        if time_left() < 20:
+            raise Timeout()
+
         if depth == 0 or not legal_moves:
             #print 'Inside return'
             #print 'last queen:',game.__last_queen_move__, 'legal_moves:', legal_moves, 'depth:', depth
@@ -352,9 +347,9 @@ class CustomPlayer:
         best_move = (-1, -1)
         best_score = self.utility_custom(game, maximizing_player, depth, len_moves)
 
-        if time_left() < 50:
-            self.expection_raised = True
-            return best_move, best_score
+        if time_left() < 20:
+            raise Timeout()
+
         if depth == 0 or not legal_moves:
             #print 'Inside return'
             #print 'last queen:',game.__last_queen_move__, 'legal_moves:', legal_moves, 'depth:', depth
