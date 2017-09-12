@@ -125,7 +125,7 @@ class CustomPlayer:
     to make sure it properly uses minimax
     and alpha-beta to return a good move."""
 
-    def __init__(self, search_depth=4, eval_fn=CustomEvalFn()):
+    def __init__(self, search_depth=3, eval_fn=CustomEvalFn()):
         """Initializes your player.
 
         if you find yourself with a superior eval function, update the default
@@ -185,7 +185,7 @@ class CustomPlayer:
         Returns:
             (tuple): best_move
         """
-        func = self.alphabeta
+        func = self.minimax
         if game.move_count == 0:
             best_move = (int(math.ceil(game.width / 2)), int(math.ceil(game.height / 2)))
         elif game.move_count == 1:  # else part implies that my agent is playing second.
@@ -193,13 +193,33 @@ class CustomPlayer:
             if center_move in legal_moves:
                 best_move = center_move
             else:
-                if game.__last_queen_move__ == center_move:
-                    self.second_player_queen_center = True
-                    best_move = self.get_predefined_moves(game, legal_moves)
-                else:
-                    best_move = self.get_non_reflective_moves(game, legal_moves)
+                best_move = self.get_predefined_moves(game, legal_moves)
         elif game.move_count < 4:
-            best_move = self.get_predefined_moves(game, legal_moves)
+            if len(legal_moves) > 0:
+                if self.second_player_queen_center:
+                    nr_move = self.get_non_reflective_moves(game, legal_moves)
+                    if nr_move:
+                        return nr_move
+                    else:
+                        r_move = self.mirrored_move(game, legal_moves)
+                        if r_move:
+                            return r_move
+                        else:
+                            rand_move = legal_moves[randint(0, len(legal_moves) - 1)]
+                            return rand_move
+                else:
+                    r_move = self.mirrored_move(game, legal_moves)
+                    if r_move:
+                        return r_move
+                    else:
+                        nr_move = self.get_non_reflective_moves(game, legal_moves)
+                        if nr_move:
+                            return nr_move
+                        else:
+                            rand_move = legal_moves[randint(0, len(legal_moves) - 1)]
+                            return rand_move
+            else:
+                return None
         else:
             # print 'Move:', game.move_count, 'Depth:', depth, 'len:', len(legal_moves)
             #print 'Time Left:', time_left()
@@ -233,6 +253,10 @@ class CustomPlayer:
 
         return self.eval_fn.score(game, maximizing_player)
 
+    def eqdist(self, game_1, game_2):
+
+        return ((game_1[0] - game_2[0]) ** 2 + (game_1[1] - game_2[1]) ** 2)
+
     def minimax(self, game, time_left, depth=3, maximizing_player=True):
         """Implementation of the minimax algorithm
 
@@ -252,7 +276,7 @@ class CustomPlayer:
         best_move = (-1, -1)
         best_score = self.utility_custom(game, maximizing_player, depth, len_moves)
 
-        if time_left() < 20:
+        if time_left() < 30:
             raise Timeout()
 
         if depth == 0 or not legal_moves:
@@ -263,7 +287,10 @@ class CustomPlayer:
             best_score = float('-inf')
             for move in legal_moves:
                 next_move = game.forecast_move(move)
-                _, score = self.minimax(next_move, time_left, depth - 1, False)
+                p_next_move, score = self.minimax(next_move, time_left, depth - 1, False)
+                if p_next_move:
+                    dist = self.eqdist(p_next_move, move)
+                    score = score + dist
                 if score > best_score:
                     best_score = score
                     best_move = move
@@ -271,7 +298,10 @@ class CustomPlayer:
             best_score = float('inf')
             for move in legal_moves:
                 next_move = game.forecast_move(move)
-                _, score = self.minimax(next_move, time_left, depth - 1, True)
+                p_next_move, score = self.minimax(next_move, time_left, depth - 1, True)
+                if p_next_move:
+                    dist = self.eqdist(p_next_move, move)
+                    score = score - dist
                 if score < best_score:
                     best_score = score
                     best_move = move
@@ -320,7 +350,7 @@ class CustomPlayer:
         best_move = (-1, -1)
         best_score = self.utility_custom(game, maximizing_player, depth, len_moves)
 
-        if time_left() < 20:
+        if time_left() < 30:
             raise Timeout()
 
         if depth == 0 or not legal_moves:
