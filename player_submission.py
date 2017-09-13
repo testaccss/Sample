@@ -125,7 +125,7 @@ class CustomPlayer:
     to make sure it properly uses minimax
     and alpha-beta to return a good move."""
 
-    def __init__(self, search_depth=3, eval_fn=CustomEvalFn()):
+    def __init__(self, search_depth=10, eval_fn=CustomEvalFn()):
         """Initializes your player.
 
         if you find yourself with a superior eval function, update the default
@@ -138,6 +138,7 @@ class CustomPlayer:
         self.eval_fn = eval_fn
         self.search_depth = search_depth
         self.second_player_queen_center = False
+        self.use_iterative_deepening = False
 
     def get_blank_spaces(self, game):
         """
@@ -223,14 +224,17 @@ class CustomPlayer:
         else:
             # print 'Move:', game.move_count, 'Depth:', depth, 'len:', len(legal_moves)
             #print 'Time Left:', time_left()
-            best_move = (-1,-1)
-            end_depth = game.width * game.height - game.move_count
-            try:
-                for depth in range(1, end_depth):
-                    best_move, utility = func(game, time_left, depth=depth)
-                    #print depth
-            except Timeout:
+            if self.use_iterative_deepening:
+                best_move = (-1,-1)
+                end_depth = game.width * game.height - game.move_count
+                try:
+                    for depth in range(1, end_depth):
+                        best_move, utility = func(game, time_left, depth=depth)
+                        #print depth
+                except Timeout:
                     pass
+            else:
+                best_move, utility = func(game, time_left, depth=self.search_depth)
             # change minimax to alphabeta after completing alphabeta part of assignment
         return best_move
 
@@ -276,10 +280,7 @@ class CustomPlayer:
         best_move = (-1, -1)
         best_score = self.utility_custom(game, maximizing_player, depth, len_moves)
 
-        if time_left() < 30:
-            raise Timeout()
-
-        if depth == 0 or not legal_moves:
+        if depth == 0 or not legal_moves or time_left() < 40:
             #print 'Inside return'
             #print 'last queen:',game.__last_queen_move__, 'legal_moves:', legal_moves, 'depth:', depth
             return None, best_score
@@ -299,6 +300,57 @@ class CustomPlayer:
             for move in legal_moves:
                 next_move = game.forecast_move(move)
                 p_next_move, score = self.minimax(next_move, time_left, depth - 1, True)
+                if p_next_move:
+                    dist = self.eqdist(p_next_move, move)
+                    score = score - dist
+                if score < best_score:
+                    best_score = score
+                    best_move = move
+
+        return best_move, best_score
+
+    def minimax_id(self, game, time_left, depth=3, maximizing_player=True):
+        """Implementation of the minimax algorithm
+
+        Args:
+            game (Board): A board and game state.
+            time_left (function): Used to determine time left before timeout
+            depth: Used to track how deep you are in the search tree
+            maximizing_player (bool): True if maximizing player is active.
+
+        Returns:
+            (tuple, int): best_move, best_val
+        """
+        # TODO: finish this function!
+        # raise NotImplementedError
+        legal_moves = game.get_legal_moves()
+        len_moves = len(legal_moves)
+        best_move = (-1, -1)
+        best_score = self.utility_custom(game, maximizing_player, depth, len_moves)
+
+        if time_left() < 30:
+            raise Timeout()
+
+        if depth == 0 or not legal_moves:
+            #print 'Inside return'
+            #print 'last queen:',game.__last_queen_move__, 'legal_moves:', legal_moves, 'depth:', depth
+            return None, best_score
+        if maximizing_player:
+            best_score = float('-inf')
+            for move in legal_moves:
+                next_move = game.forecast_move(move)
+                p_next_move, score = self.minimax_id(next_move, time_left, depth - 1, False)
+                if p_next_move:
+                    dist = self.eqdist(p_next_move, move)
+                    score = score + dist
+                if score > best_score:
+                    best_score = score
+                    best_move = move
+        else:
+            best_score = float('inf')
+            for move in legal_moves:
+                next_move = game.forecast_move(move)
+                p_next_move, score = self.minimax_id(next_move, time_left, depth - 1, True)
                 if p_next_move:
                     dist = self.eqdist(p_next_move, move)
                     score = score - dist
@@ -350,10 +402,7 @@ class CustomPlayer:
         best_move = (-1, -1)
         best_score = self.utility_custom(game, maximizing_player, depth, len_moves)
 
-        if time_left() < 30:
-            raise Timeout()
-
-        if depth == 0 or not legal_moves:
+        if depth == 0 or not legal_moves or time_left() < 40:
             #print 'Inside return'
             #print 'last queen:',game.__last_queen_move__, 'legal_moves:', legal_moves, 'depth:', depth
             return best_move, best_score
@@ -379,6 +428,67 @@ class CustomPlayer:
                 next_move = game.forecast_move(move)
                 #print move, '->', next_move.__last_queen_move__
                 _, score = self.alphabeta(next_move, time_left, depth - 1, alpha, beta, True)
+                #print move, '->', next_move.get_legal_moves(), 'score:', score
+                if score < best_score:
+                    best_score = score
+                    best_move = move
+                if alpha >= best_score:
+                    return best_move, best_score
+                beta = min(beta, best_score)
+
+        return best_move, best_score
+
+    def alphabeta_id(self, game, time_left, depth=3, alpha=float("-inf"), beta=float("inf"),
+                  maximizing_player=True):
+        """Implementation of the alphabeta algorithm
+
+        Args:
+            game (Board): A board and game state.
+            time_left (function): Used to determine time left before timeout
+            depth: Used to track how deep you are in the search tree
+            alpha (float): Alpha value for pruning
+            beta (float): Beta value for pruning
+            maximizing_player (bool): True if maximizing player is active.
+
+        Returns:
+            (tuple, int): best_move, best_val
+        """
+        # TODO: finish this function!
+        # raise NotImplementedError
+        legal_moves = game.get_legal_moves()
+        len_moves = len(legal_moves)
+        best_move = (-1, -1)
+        best_score = self.utility_custom(game, maximizing_player, depth, len_moves)
+
+        if time_left() < 30:
+            raise Timeout()
+
+        if depth == 0 or not legal_moves:
+            #print 'Inside return'
+            #print 'last queen:',game.__last_queen_move__, 'legal_moves:', legal_moves, 'depth:', depth
+            return best_move, best_score
+        #print 'Depth:', depth
+        if maximizing_player:
+            #print 'Max:'
+            best_score = float("-inf")
+            for move in legal_moves:
+                next_move = game.forecast_move(move)
+                #print move, '->', next_move.__last_queen_move__
+                _, score = self.alphabeta_id(next_move, time_left, depth - 1, alpha, beta, False)
+                #print move, '->', next_move.get_legal_moves(), 'score:', score
+                if score > best_score:
+                    best_score = score
+                    best_move = move
+                if best_score >= beta:
+                    return best_move, best_score
+                alpha = max(alpha, best_score)
+        else:
+            #print 'Min:'
+            best_score = float("inf")
+            for move in legal_moves:
+                next_move = game.forecast_move(move)
+                #print move, '->', next_move.__last_queen_move__
+                _, score = self.alphabeta_id(next_move, time_left, depth - 1, alpha, beta, True)
                 #print move, '->', next_move.get_legal_moves(), 'score:', score
                 if score < best_score:
                     best_score = score
