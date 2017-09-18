@@ -141,6 +141,12 @@ class PriorityQueue(object):
     def isNull(self):
         return len(self.queue) == 0
 
+    def get_node(self, node):
+        for index, (_, path) in enumerate(self.queue):
+            if node == path[-1]:
+                return self.queue[index]
+        return None, None
+
 
 def breadth_first_search(graph, start, goal):
     """
@@ -358,7 +364,87 @@ def bidirectional_ucs(graph, start, goal, heuristic=euclidean_dist_heuristic):
     """
 
     # TODO: finish this function!
-    raise NotImplementedError
+    frontier_s = PriorityQueue()
+    frontier_g = PriorityQueue()
+    explored_s = []
+    explored_g = []
+    frontier_s.append((0, [start]))
+    frontier_g.append((0, [goal]))
+    mu = float('inf')
+    best_path = []
+    
+    if start == goal:
+        return []
+
+    while not frontier_s.isNull() and not frontier_g.isNull():
+        
+        top_s = frontier_s.top()
+        top_s_cost = top_s[0]
+        top_g = frontier_g.top()
+        top_g_cost = top_g[0]
+        if (top_s_cost + top_g_cost) >= mu:
+            return best_path
+
+        if top_s_cost <= top_g_cost:
+        
+            if not frontier_s.isNull():
+                cost_s, path_s = frontier_s.pop()
+                curr_node_s = path_s[-1]
+        
+            if curr_node_s in explored_g:
+                cost_g, path_g = frontier_g.get_node(curr_node_s)
+                path_g.reverse()
+                if best_cost > cost_s + cost_g:
+                    best_cost = cost_s + cost_g
+                    best_path = path_s + path_g
+
+            if curr_node_s not in explored_s:
+                explored_s.append(curr_node_s)
+                for neighbor in graph[curr_node_s]:
+                    new_path = list(path_s)
+                    new_path.append(neighbor)
+                    total_cost = cost_s + graph[curr_node_s][neighbor]['weight']
+                    if neighbor not in explored_s and neighbor not in frontier_s:
+                        frontier_s.append((total_cost, new_path))
+                    elif neighbor in frontier_s:
+                        for last_cost, last_path in frontier_s:
+                            last_node = last_path[-1]
+                            if neighbor == last_node:
+                                if total_cost < last_cost:
+                                    frontier_s.remove(neighbor)
+                                    frontier_s.append((total_cost, new_path))
+                                break
+        else:
+            if not frontier_g.isNull():
+                cost_g, path_g = frontier_g.pop()
+                curr_node_g = path_g[-1]
+        
+            if curr_node_g in explored_s:
+                cost_s, path_s = frontier_s.get_node(curr_node_g)
+                path_s.reverse()
+                if best_cost > cost_s + cost_g:
+                    best_cost = cost_s + cost_g
+                    best_path = path_g + path_s
+
+            if curr_node_g not in explored_g:
+                explored_g.append(curr_node_g)
+                for neighbor in graph[curr_node_g]:
+                    new_path = list(path_g)
+                    new_path.append(neighbor)
+                    total_cost = cost_g + graph[curr_node_g][neighbor]['weight']
+                    if neighbor not in explored_g and neighbor not in frontier_g:
+                        frontier_g.append((total_cost, new_path))
+                    elif neighbor in frontier_g:
+                        for last_cost, last_path in frontier_g:
+                            last_node = last_path[-1]
+                            if neighbor == last_node:
+                                if total_cost < last_cost:
+                                    frontier_g.remove(neighbor)
+                                    frontier_g.append((total_cost, new_path))
+                                break
+
+    return []
+
 
 
 def bidirectional_a_star(graph, start, goal,
