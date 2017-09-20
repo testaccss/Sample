@@ -450,6 +450,7 @@ def bidirectional_ucs(graph, start, goal, heuristic=euclidean_dist_heuristic):
                     if mu > total_cost:
                         mu = total_cost
                         best_path = copy.deepcopy(path_g)
+                        best_path.reverse()
                 #if neighbor in explored_s:
                 if frontier_s.isNodeInQueue(curr_node_g):
                     node_id = frontier_s.node_index(curr_node_g)
@@ -475,7 +476,7 @@ def bidirectional_ucs(graph, start, goal, heuristic=euclidean_dist_heuristic):
                             if total_cost < last_cost:
                                 frontier_g.remove(node_id)
                                 frontier_g.append((total_cost, new_path))
-    return []
+    return best_path
 
 def bidirectional_a_star(graph, start, goal,
                          heuristic=euclidean_dist_heuristic):
@@ -496,7 +497,121 @@ def bidirectional_a_star(graph, start, goal,
     """
 
     # TODO: finish this function!
-    raise NotImplementedError
+    frontier_s = PriorityQueue()
+    frontier_g = PriorityQueue()
+    explored_s = []
+    explored_g = []
+    frontier_s.append((0, [start]))
+    frontier_g.append((0, [goal]))
+    mu = float('inf')
+    best_path = []
+    count = 0
+
+    if start == goal:
+        return []
+
+    while not frontier_s.isNull() and not frontier_g.isNull():
+
+        top_s = frontier_s.top()
+        top_s_cost = top_s[0]
+        top_g = frontier_g.top()
+        top_g_cost = top_g[0]
+        top_g_path = top_g[1]
+        top_s_path = top_s[1] 
+        if heuristic==euclidean_dist_heuristic:
+            cost = path_cost(graph, top_g_path)
+            #cost += path_cost(graph, top_s_path)
+        else:
+            cost = 0
+
+        if (top_s_cost + top_g_cost) >= mu:
+            return best_path
+
+        count = count + 1
+        #if top_s_cost < (mu + cost):
+        if top_s_cost <= top_g_cost:
+
+            if not frontier_s.isNull():
+                cost_s, path_s = frontier_s.pop()
+                curr_node_s = path_s[-1]
+
+                # if frontier_g.isNodeInQueue(neighbor):
+                if curr_node_s == goal:
+                    if mu > cost_s:
+                        mu = cost_s
+                        best_path = copy.deepcopy(path_s)
+                if frontier_g.isNodeInQueue(curr_node_s):
+                #if neighbor in explored_g:
+                    node_id = frontier_g.node_index(curr_node_s)
+                    if node_id > -1:
+                        cost_g, path_g = copy.deepcopy(frontier_g.queue[node_id])
+                        path_g.reverse()
+                        if mu > cost_s + cost_g:
+                            mu = cost_s + cost_g
+                            best_path = path_s + path_g[1:]
+
+                if curr_node_s not in explored_s:
+                    explored_s.append(curr_node_s)
+                    for neighbor in graph[curr_node_s]:
+                        new_path = list(path_s)
+                        new_path.append(neighbor)
+                        total_cost = path_cost(graph, new_path)
+                        hs = heuristic(graph, neighbor, start)
+                        hg = heuristic(graph, neighbor, goal) 
+                        total_cost = total_cost + ((hg - hs) / 2)
+                        is_last, node_id = frontier_s.isNodeLastInQueue(neighbor)
+                        if (neighbor not in explored_s) and (not is_last):
+                            frontier_s.append((total_cost, new_path))
+                        elif is_last:
+                            last_cost, last_path = frontier_s.queue[node_id]
+                            if total_cost < last_cost:
+                                frontier_s.remove(node_id)
+                                frontier_s.append((total_cost, new_path))
+        
+        #if top_g_cost < (mu + cost):
+        else:
+
+            if not frontier_g.isNull():
+                cost_g, path_g = frontier_g.pop()
+                curr_node_g = path_g[-1]
+
+                # if frontier_s.isNodeInQueue(neighbor):
+                if curr_node_g == start:
+                    if mu > cost_g:
+                        mu = cost_g
+                        best_path = copy.deepcopy(path_g)
+                        best_path.reverse()
+                #if neighbor in explored_s:
+                if frontier_s.isNodeInQueue(curr_node_g):
+                    node_id = frontier_s.node_index(curr_node_g)
+                    if node_id > -1:
+                        cost_s, path_s = copy.deepcopy(frontier_s.queue[node_id])
+                        path_gg = copy.deepcopy(path_g)
+                        path_gg.reverse()
+                        if mu > cost_g + cost_s:
+                            mu = cost_g + cost_s
+                            best_path = path_s[:len(path_s) - 1] + path_gg
+
+                if curr_node_g not in explored_g:
+                    explored_g.append(curr_node_g)
+                    for neighbor in graph[curr_node_g]:
+                        new_path = list(path_g)
+                        new_path.append(neighbor)
+                        total_cost = path_cost(graph, new_path)
+                        hs = heuristic(graph, neighbor, start)
+                        hg = heuristic(graph, neighbor, goal) 
+                        total_cost = total_cost + ((hs - hg) / 2)                                      
+                        is_last, node_id = frontier_g.isNodeLastInQueue(neighbor)
+                        if (neighbor not in explored_g) and (not is_last):
+                            frontier_g.append((total_cost, new_path))
+                        elif is_last:
+                            last_cost, last_path = frontier_g.queue[node_id]
+                            if total_cost < last_cost:
+                                frontier_g.remove(node_id)
+                                frontier_g.append((total_cost, new_path))
+    return best_path
+
+def find_best_path()
 
 
 def tridirectional_search(graph, goals):
@@ -514,7 +629,173 @@ def tridirectional_search(graph, goals):
         the other goal nodes).
     """
     # TODO: finish this function
-    raise NotImplementedError
+	start = goals[0]
+    center = goals[1]
+	goal = goals[2]
+    frontier_s = PriorityQueue()
+    frontier_c = PriorityQueue()
+    frontier_g = PriorityQueue()
+    explored_s = []
+    explored_c = []
+    explored_g = []
+    frontier_s.append((0, [start]))
+    frontier_c.append((0, [center]))
+    frontier_g.append((0, [goal]))
+    mu = float('inf')
+    count = 0
+
+    while not frontier_s.isNull() and not frontier_g.isNull():
+
+        top_s = frontier_s.top()
+        top_s_cost = top_s[0]
+        top_c = frontier_c.top()
+        top_c_cost = top_c[0]
+        top_s_cost = top_s[0]
+        top_g = frontier_g.top()
+        top_g_cost = top_g[0]
+
+        if (top_s_cost + top_c_cost + top_g_cost) >= mu:
+            return find_best_path()
+
+        count = count + 1
+        if top_s_cost <= top_g_cost and top_s_cost <= top_c_cost:
+
+            if not frontier_s.isNull():
+                cost_s, path_s = frontier_s.pop()
+                curr_node_s = path_s[-1]
+
+                # if frontier_g.isNodeInQueue(neighbor):
+                if curr_node_s == center:
+                    if mu > cost_s:
+                        mu = cost_s
+                        path_sc = copy.deepcopy(path_s)
+                elif frontier_c.isNodeInQueue(curr_node_s):
+                    node_id = frontier_c.node_index(curr_node_s)
+                    if node_id > -1:
+                        cost_c, path_c = copy.deepcopy(frontier_c.queue[node_id])
+                        path_c.reverse()
+                        if mu > cost_s + cost_c:
+                            mu = cost_s + cost_c
+                            path_sc = path_s + path_c[1:]
+                elif frontier_g.isNodeInQueue(curr_node_s):
+                    node_id = frontier_g.node_index(curr_node_s)
+                    if node_id > -1:
+                        cost_g, path_g = copy.deepcopy(frontier_g.queue[node_id])
+                        path_g.reverse()
+                        if mu > cost_s + cost_g:
+                            mu = cost_s + cost_g
+                            path_sg = path_s + path_g[1:]
+                            if path_sg[-1] == goal:
+                                path_sg.reverse()
+
+                if curr_node_s not in explored_s:
+                    explored_s.append(curr_node_s)
+                    for neighbor in graph[curr_node_s]:
+                        new_path = list(path_s)
+                        new_path.append(neighbor)
+                        total_cost = cost_s + graph[curr_node_s][neighbor]['weight']
+                        is_last, node_id = frontier_s.isNodeLastInQueue(neighbor)
+                        if (neighbor not in explored_s) and (not is_last):
+                            frontier_s.append((total_cost, new_path))
+                        elif is_last:
+                            last_cost, last_path = frontier_s.queue[node_id]
+                            if total_cost < last_cost:
+                                frontier_s.remove(node_id)
+                                frontier_s.append((total_cost, new_path))
+								
+        elif top_c_cost <= top_s_cost and top_c_cost <= top_g_cost:
+
+            if not frontier_c.isNull():
+                cost_c, path_c = frontier_c.pop()
+                curr_node_c = path_c[-1]
+
+                # if frontier_g.isNodeInQueue(neighbor):
+                if curr_node_c == goal:
+                    if mu > cost_c:
+                        mu = cost_c
+                        path_cg = copy.deepcopy(path_c)
+                elif frontier_s.isNodeInQueue(curr_node_c):
+                    node_id = frontier_s.node_index(curr_node_c)
+                    if node_id > -1:
+                        cost_s, path_s = copy.deepcopy(frontier_s.queue[node_id])
+                        path_s.reverse()
+                        if mu > cost_s + cost_c:
+                            mu = cost_s + cost_c
+                            path_sc = path_s + path_c[1:]
+                            if path_sc[-1] == start:
+                                path_sc.reverse()
+                elif frontier_g.isNodeInQueue(curr_node_c):
+                    node_id = frontier_g.node_index(curr_node_c)
+                    if node_id > -1:
+                        cost_g, path_g = copy.deepcopy(frontier_g.queue[node_id])
+                        path_g.reverse()
+                        if mu > cost_c + cost_g:
+                            mu = cost_c + cost_g
+                            path_cg = path_c + path_g[1:]
+
+                if curr_node_c not in explored_c:
+                    explored_c.append(curr_node_c)
+                    for neighbor in graph[curr_node_c]:
+                        new_path = list(path_c)
+                        new_path.append(neighbor)
+                        total_cost = cost_c + graph[curr_node_c][neighbor]['weight']
+                        is_last, node_id = frontier_c.isNodeLastInQueue(neighbor)
+                        if (neighbor not in explored_c) and (not is_last):
+                            frontier_c.append((total_cost, new_path))
+                        elif is_last:
+                            last_cost, last_path = frontier_c.queue[node_id]
+                            if total_cost < last_cost:
+                                frontier_c.remove(node_id)
+                                frontier_c.append((total_cost, new_path))
+        else:
+            if not frontier_g.isNull():
+                cost_g, path_g = frontier_g.pop()
+                curr_node_g = path_g[-1]
+
+                # if frontier_s.isNodeInQueue(neighbor):
+                if curr_node_g == start:
+                    if mu > total_cost:
+                        mu = total_cost
+                        path_gs = copy.deepcopy(path_g)
+                        path_gs.reverse()
+                #if neighbor in explored_s:
+                elif frontier_s.isNodeInQueue(curr_node_g):
+                    node_id = frontier_s.node_index(curr_node_g)
+                    if node_id > -1:
+                        cost_s, path_s = copy.deepcopy(frontier_s.queue[node_id])
+                        path_gg = copy.deepcopy(path_g)
+                        path_gg.reverse()
+                        if mu > cost_g + cost_s:
+                            mu = cost_g + cost_s
+                            path_sg = path_s[:len(path_s) - 1] + path_gg
+                elif frontier_c.isNodeInQueue(curr_node_g):
+                    node_id = frontier_c.node_index(curr_node_g)
+                    if node_id > -1:
+                        cost_c, path_c = copy.deepcopy(frontier_c.queue[node_id])
+                        path_gg = copy.deepcopy(path_g)
+                        path_gg.reverse()
+                        if mu > cost_g + cost_c:
+                            mu = cost_g + cost_c
+                            path_cg = path_s[:len(path_c) - 1] + path_gg
+                            if path_cg[-1] == middle:
+                                path_cg.reverse()
+
+                if curr_node_g not in explored_g:
+                    explored_g.append(curr_node_g)
+                    for neighbor in graph[curr_node_g]:
+                        new_path = list(path_g)
+                        new_path.append(neighbor)
+                        total_cost = cost_g + graph[curr_node_g][neighbor]['weight']
+                        is_last, node_id = frontier_g.isNodeLastInQueue(neighbor)
+                        if (neighbor not in explored_g) and (not is_last):
+                            frontier_g.append((total_cost, new_path))
+                        elif is_last:
+                            last_cost, last_path = frontier_g.queue[node_id]
+                            if total_cost < last_cost:
+                                frontier_g.remove(node_id)
+                                frontier_g.append((total_cost, new_path))
+    
+	return find_best_path()
 
 
 def tridirectional_upgraded(graph, goals, heuristic=euclidean_dist_heuristic):
