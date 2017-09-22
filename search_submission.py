@@ -628,9 +628,9 @@ def get_min_path_1(mu_sg,mu_cg,mu_sc, path_sc,path_sg, path_cg):
 
 def get_min_path(mu_sg,mu_cg,mu_sc, path_sc,path_sg, path_cg):
 
-    print mu_sg, path_sg
-    print mu_cg, path_cg
-    print mu_sc, path_sc
+    #print mu_sg, path_sg
+    #print mu_cg, path_cg
+    #print mu_sc, path_sc
     sc = set(copy.deepcopy(path_sc))
     cg = set(copy.deepcopy(path_cg))
     sg = set(copy.deepcopy(path_sg))
@@ -710,6 +710,9 @@ def tridirectional_search(graph, goals):
     path_sg = []
     path_cg = []
     total_explored = 0
+    flag_s = 0
+    flag_c = 0
+    flag_g = 0
 
     while not frontier_s.isNull() and not frontier_g.isNull() and not frontier_c.isNull():
 
@@ -724,11 +727,18 @@ def tridirectional_search(graph, goals):
         #        or (top_s_cost >= mu_sc and top_g_cost >= mu_sg):
         #if top_s_cost >= mu_sc and top_c_cost >= mu_cg and top_g_cost >= mu_sg:
         #if (top_s_cost + top_c_cost + top_g_cost >= (mu_sg + mu_sc + mu_cg)):
+        if (top_s_cost + top_c_cost >= mu_sc) and (top_c_cost + top_g_cost >= mu_cg):
+            flag_c = 1
+        if (top_s_cost + top_g_cost >= mu_sg) and (top_c_cost + top_g_cost >= mu_cg):
+            flag_g = 1
+        if (top_s_cost + top_g_cost >= mu_sg) and (top_s_cost + top_c_cost >= mu_sc):
+            flag_s = 1
 
-        if (top_s_cost + top_c_cost >= mu_sc) and (top_c_cost + top_g_cost >= mu_cg) and (top_s_cost + top_g_cost >= mu_sg):
-            return get_min_path(mu_sg,mu_cg,mu_sc, path_sc,path_sg, path_cg)
+        #if (((top_s_cost + top_c_cost >= mu_sc) and (top_c_cost + top_g_cost >= mu_cg) and (mu_sg > mu_sc) and (mu_sg > mu_cg))  or ((top_s_cost + top_g_cost >= mu_sg) and (top_c_cost + top_g_cost >= mu_cg) and (mu_sc > mu_sg) and (mu_sc > mu_cg)) or ((top_s_cost + top_g_cost >= mu_sg) and (top_s_cost + top_c_cost >= mu_sc) and (mu_cg > mu_sg) and (mu_cg > mu_sc))):
+        if (top_s_cost + top_c_cost >= mu_sc) and (top_c_cost + top_g_cost >= mu_cg) and (top_s_cost + top_g_cost >= mu_sg):		
+        #if (top_s_cost + top_c_cost + top_g_cost >= (mu_sg + mu_sc + mu_cg)):         
+		    return get_min_path(mu_sg,mu_cg,mu_sc, path_sc,path_sg, path_cg)
 
-        count = count + 1
         if top_s_cost <= top_g_cost and top_s_cost <= top_c_cost:
         #if top_s_cost < mu_sc:
         #if top_s_cost < mu_sc or top_s_cost < mu_sg:
@@ -771,7 +781,7 @@ def tridirectional_search(graph, goals):
                                 path_sg.reverse()
                             flag_sg = 1
 
-                if curr_node_s not in explored_s:
+                if curr_node_s not in explored_s and not flag_s:
                     explored_s.append(curr_node_s)
                     for neighbor in graph[curr_node_s]:
                         new_path = list(path_s)
@@ -830,7 +840,7 @@ def tridirectional_search(graph, goals):
                             path_cg = path_c[0:-1] + path_g
                             flag_cg = 1
 
-                if curr_node_c not in explored_c:
+                if curr_node_c not in explored_c and not flag_c:
                     explored_c.append(curr_node_c)
                     for neighbor in graph[curr_node_c]:
                         new_path = list(path_c)
@@ -894,7 +904,7 @@ def tridirectional_search(graph, goals):
                                 path_cg.reverse()
                             flag_cg = 1
 
-                if curr_node_g not in explored_g:
+                if curr_node_g not in explored_g and not flag_g:
                     explored_g.append(curr_node_g)
                     for neighbor in graph[curr_node_g]:
                         new_path = list(path_g)
@@ -975,9 +985,9 @@ def tridirectional_upgraded(graph, goals, heuristic=euclidean_dist_heuristic):
             return get_min_path(mu_sg,mu_cg,mu_sc, path_sc,path_sg, path_cg)
 
         count = count + 1
-        #if top_s_cost <= top_g_cost and top_s_cost <= top_c_cost:
+        if top_s_cost <= top_g_cost and top_s_cost <= top_c_cost:
         #if top_s_cost < mu_sc:
-        if top_s_cost < mu_sc or top_s_cost < mu_sg:
+        #if top_s_cost < mu_sc or top_s_cost < mu_sg:
 
             if not frontier_s.isNull():
                 cost_s, path_s = frontier_s.pop()
@@ -1025,11 +1035,13 @@ def tridirectional_upgraded(graph, goals, heuristic=euclidean_dist_heuristic):
                         if neighbor in explored_s:
                             continue
                         total_cost = path_cost(graph, new_path)
-                        hs = heuristic(graph, neighbor, start)
-                        hc = heuristic(graph, neighbor, center)
-                        hg = heuristic(graph, neighbor, goal)
-                        total_cost = total_cost - ((hg - hs) / 2)
-                        #total_cost = total_cost + ((hc - hs) / 8)
+                        #hs = heuristic(graph, neighbor, start)
+                        #hc = heuristic(graph, neighbor, center)
+                        #hg = heuristic(graph, neighbor, goal)
+                        #c1 = heuristic(graph, center, goal)
+                        #c2 = heuristic(graph, center, start)                        
+                        #total_cost = total_cost + ((hg - hs) / 2) + c1/2
+                        #total_cost = total_cost + ((hc - hs) / 2) + c2/2
                         is_last, node_id = frontier_s.isNodeLastInQueue(neighbor)
                         if (neighbor not in explored_s) and (not is_last):
                             frontier_s.append((total_cost, new_path))
@@ -1039,9 +1051,9 @@ def tridirectional_upgraded(graph, goals, heuristic=euclidean_dist_heuristic):
                                 frontier_s.remove(node_id)
                                 frontier_s.append((total_cost, new_path))
 
-        #if top_c_cost <= top_s_cost and top_c_cost <= top_g_cost:
+        if top_c_cost <= top_s_cost and top_c_cost <= top_g_cost:
         #if top_c_cost < mu_cg:
-        if top_c_cost < mu_cg or top_c_cost < mu_sc:
+        #if top_c_cost < mu_cg or top_c_cost < mu_sc:
 
             if not frontier_c.isNull():
                 cost_c, path_c = frontier_c.pop()
@@ -1089,11 +1101,13 @@ def tridirectional_upgraded(graph, goals, heuristic=euclidean_dist_heuristic):
                         if neighbor in explored_c:
                             continue
                         total_cost = path_cost(graph, new_path)
-                        hs = heuristic(graph, neighbor, start)
-                        hc = heuristic(graph, neighbor, center)
-                        hg = heuristic(graph, neighbor, goal)
-                        total_cost = total_cost + ((hg - hc) / 2)
-                        #total_cost = total_cost - ((hs - hc) / 8)
+                        #hs = heuristic(graph, neighbor, start)
+                        #hc = heuristic(graph, neighbor, center)
+                        #hg = heuristic(graph, neighbor, goal)
+                        #c1 = heuristic(graph, center, goal)
+                        #c2 = heuristic(graph, center, start)
+                        #total_cost = total_cost + ((hg - hc) / 2) + c1/2
+                        #total_cost = total_cost + ((hs - hc) / 2) + c2/2
                         is_last, node_id = frontier_c.isNodeLastInQueue(neighbor)
                         if (neighbor not in explored_c) and (not is_last):
                             frontier_c.append((total_cost, new_path))
@@ -1103,10 +1117,10 @@ def tridirectional_upgraded(graph, goals, heuristic=euclidean_dist_heuristic):
                                 frontier_c.remove(node_id)
                                 frontier_c.append((total_cost, new_path))
         #else:
-        #if top_g_cost <= top_s_cost and top_g_cost <= top_c_cost:
+        if top_g_cost <= top_s_cost and top_g_cost <= top_c_cost:
         #if top_g_cost < mu_sg:
 
-        if top_g_cost < mu_sg or top_g_cost < mu_cg:
+        #if top_g_cost < mu_sg or top_g_cost < mu_cg:
             if not frontier_g.isNull():
                 cost_g, path_g = frontier_g.pop()
                 curr_node_g = path_g[-1]
@@ -1158,11 +1172,13 @@ def tridirectional_upgraded(graph, goals, heuristic=euclidean_dist_heuristic):
                         if neighbor in explored_g:
                             continue
                         total_cost = path_cost(graph, new_path)
-                        hs = heuristic(graph, neighbor, start)
-                        hc = heuristic(graph, neighbor, center)
-                        hg = heuristic(graph, neighbor, goal)
-                        total_cost = total_cost + ((hs - hg) / 2)
-                        #total_cost = total_cost - ((hc - hg) / 8)
+                        #hs = heuristic(graph, neighbor, start)
+                        #hc = heuristic(graph, neighbor, center)
+                        #hg = heuristic(graph, neighbor, goal)
+                        #c1 = heuristic(graph, goal, start)
+                        #c2 = heuristic(graph, goal, center)
+                        #total_cost = total_cost + ((hs - hg) / 2) + c1 / 2
+                        #total_cost = total_cost + ((hc - hg) / 2) + c2 / 2
                         is_last, node_id = frontier_g.isNodeLastInQueue(neighbor)
                         if (neighbor not in explored_g) and (not is_last):
                             frontier_g.append((total_cost, new_path))
