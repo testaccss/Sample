@@ -283,7 +283,50 @@ class DecisionTree:
         """
 
         # TODO: finish this.
-        raise NotImplemented()
+        use_median = False
+        if len(set(classes)) == 1:
+            return DecisionNode(None, None, None, classes[0])
+        elif depth >= self.depth_limit:
+            most_freq_class = max(set(classes), key=classes.count)
+            return DecisionNode(None, None, None, most_freq_class)
+        else:
+            depth += 1
+            alpha_gain_best = float('-inf')
+            alpha_best = -1
+            alpha_threshold = -1
+            for index in range(0, features.shape[1]):
+                alpha = np.array(features[:, index])
+                #alpha_sorted = sorted(alpha)
+                if len(set(alpha))==1:
+                    most_freq_class = max(set(classes), key=classes.count)
+                    return DecisionNode(None, None, None, most_freq_class)
+                if use_median:
+                    threshold = np.median(alpha)
+                else:
+                    threshold = np.mean(alpha)
+                curr_classes = [[],[]]
+                classes_ = np.array(classes)
+                curr_classes[0] = classes_[np.where(alpha < threshold)].tolist()
+                curr_classes[1] = classes_[np.where(alpha >= threshold)].tolist()
+                alpha_gain = gini_gain(classes, curr_classes)
+                if alpha_gain > alpha_gain_best:
+                    alpha_best = index
+                    alpha_gain_best = alpha_gain
+                    alpha_threshold = threshold
+
+            node = DecisionNode(None, None, lambda feature: feature[alpha_best] < alpha_threshold)
+            
+            left_ind = np.where(features[:,alpha_best] < alpha_threshold)
+            left_features = features[left_ind]
+            left_classes = np.array(classes)[left_ind].tolist()
+            node.left = self.__build_tree__(left_features, left_classes, depth)
+            
+            right_ind = np.where(features[:,alpha_best] >= alpha_threshold)
+            right_features = features[right_ind]
+            right_classes = np.array(classes)[right_ind].tolist()
+            node.right = self.__build_tree__(right_features, right_classes, depth)
+            
+            return node
 
     def classify(self, features):
         """Use the fitted tree to classify a list of example features.
@@ -298,7 +341,7 @@ class DecisionTree:
         class_labels = []
 
         # TODO: finish this.
-        raise NotImplemented()
+        class_labels = [self.root.decide(feature) for feature in features]
         return class_labels
 
 
@@ -319,7 +362,19 @@ def generate_k_folds(dataset, k):
     """
 
     # TODO: finish this.
-    raise NotImplemented()
+    feature, label = dataset
+    label_ = np.reshape(label, (-1, 1))
+    data = np.append(feature, label_, 1)
+    sample_size = data.shape[0] // k
+    folds = []
+    np.random.shuffle(data)
+    for i in range(k):
+        test_set = data[0:sample_size]
+        training_set = data[sample_size:]
+        traning_data = (training_set[:, 0:-1], training_set[:, -1])
+        test_data = (test_set[:, 0:-1], test_set[:, -1])
+        folds.append((traning_data, test_data))
+    return folds
 
 
 class RandomForest:
