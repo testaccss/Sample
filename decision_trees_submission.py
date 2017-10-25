@@ -3,7 +3,7 @@ from __future__ import division
 import numpy as np
 from collections import Counter
 import time
-
+import copy
 
 class DecisionNode:
     """Class to represent a single node in a decision tree."""
@@ -211,6 +211,7 @@ def gini_impurity(class_vector):
     Returns:
         Floating point number representing the gini impurity.
     """
+    class_vector = list(class_vector)
     if len(class_vector) == 0:
         return 0.
     prob = {}
@@ -235,6 +236,8 @@ def gini_gain(previous_classes, current_classes):
     
     total = 0
     count = 0
+    if len(previous_classes) == 0:
+        return 0.
     for c in current_classes:
         #print c, gini_impurity(c)
         total +=  gini_impurity(c) * len(c) / len(previous_classes)
@@ -301,11 +304,12 @@ class DecisionTree:
                     most_freq_class = max(set(classes), key=classes.count)
                     return DecisionNode(None, None, None, most_freq_class)
                 if use_median:
-                    threshold = np.median(alpha)
+                    alpha_sorted = sorted(alpha)
+                    threshold = np.median(alpha_sorted)
                 else:
                     threshold = np.mean(alpha)
                 curr_classes = [[],[]]
-                classes_ = np.array(classes)
+                classes_ = copy.deepcopy(np.array(classes))
                 curr_classes[0] = classes_[np.where(alpha < threshold)].tolist()
                 curr_classes[1] = classes_[np.where(alpha >= threshold)].tolist()
                 alpha_gain = gini_gain(classes, curr_classes)
@@ -376,7 +380,6 @@ def generate_k_folds(dataset, k):
         folds.append((traning_data, test_data))
     return folds
 
-
 class RandomForest:
     """Random forest classification."""
 
@@ -392,6 +395,7 @@ class RandomForest:
         """
 
         self.trees = []
+        self.feat_idx = []
         self.num_trees = num_trees
         self.depth_limit = depth_limit
         self.example_subsample_rate = example_subsample_rate
@@ -405,7 +409,21 @@ class RandomForest:
         """
 
         # TODO: finish this.
-        raise NotImplemented()
+        classes_ = np.asarray(classes)
+        features_ = np.array(features)
+        for index in range(self.num_trees):
+            num_examples = int(self.example_subsample_rate * features_.shape[0])
+            sample_idx = np.random.choice(features_.shape[0], num_examples, replace=True)
+            sample_features = features_[sample_idx]
+            sample_classes = classes_[sample_idx]
+            num_attrs = int(self.attr_subsample_rate * features_.shape[1])
+            sample_idx_node = np.random.choice(features_.shape[1], num_attrs, replace=True)
+            sample_features_node = sample_features[:,sample_idx_node]
+
+            tree = DecisionTree(self.depth_limit)
+            tree.fit(sample_features_node,sample_classes)
+            self.trees.append(tree)
+            self.feat_idx.append(sample_idx_node)
 
     def classify(self, features):
         """Classify a list of features based on the trained random forest.
@@ -415,8 +433,15 @@ class RandomForest:
         """
 
         # TODO: finish this.
-        raise NotImplemented()
+        output = []
+        classes_list = []
+        most_freq_class = []
+        for index, tree in enumerate(self.trees):
+            node_features = features[:,self.feat_idx[index]]
+            output.append(tree.classify(node_features))
 
+        most_freq_class = np.array(np.amax(output, axis = 0))
+        return most_freq_class
 
 class ChallengeClassifier:
     """Challenge Classifier used on Challenge Training Data."""
@@ -503,7 +528,7 @@ class Vectorization:
         """
 
         # TODO: finish this.
-        raise NotImplemented()
+        return np.add(np.multiply(data, data), data)
 
     def non_vectorized_slice(self, data):
         """Find row with max sum using loops.
