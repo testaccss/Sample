@@ -243,7 +243,7 @@ def gini_gain(previous_classes, current_classes):
         total +=  gini_impurity(c) * len(c) / len(previous_classes)
         count += 1
     gini_prev = gini_impurity(previous_classes)
-	#print "gini_prev", gini_prev
+    #print "gini_prev", gini_prev
     gain = gini_prev - total
     return gain	
 
@@ -286,7 +286,7 @@ class DecisionTree:
         """
 
         # TODO: finish this.
-        use_median = False
+        use_median = True
         if len(set(classes)) == 1:
             return DecisionNode(None, None, None, classes[0])
         elif depth >= self.depth_limit:
@@ -413,11 +413,12 @@ class RandomForest:
         features_ = np.array(features)
         for index in range(self.num_trees):
             num_examples = int(self.example_subsample_rate * features_.shape[0])
+            #np.random.seed(100)
             sample_idx = np.random.choice(features_.shape[0], num_examples, replace=True)
             sample_features = features_[sample_idx]
             sample_classes = classes_[sample_idx]
             num_attrs = int(self.attr_subsample_rate * features_.shape[1])
-            sample_idx_node = np.random.choice(features_.shape[1], num_attrs, replace=True)
+            sample_idx_node = np.random.choice(features_.shape[1], num_attrs, replace=False)
             sample_features_node = sample_features[:,sample_idx_node]
 
             tree = DecisionTree(self.depth_limit)
@@ -434,8 +435,6 @@ class RandomForest:
 
         # TODO: finish this.
         output = []
-        classes_list = []
-        most_freq_class = []
         for index, tree in enumerate(self.trees):
             node_features = features[:,self.feat_idx[index]]
             output.append(tree.classify(node_features))
