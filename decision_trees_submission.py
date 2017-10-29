@@ -5,6 +5,7 @@ from collections import Counter
 import time
 import copy
 
+
 class DecisionNode:
     """Class to represent a single node in a decision tree."""
 
@@ -233,20 +234,51 @@ def gini_gain(previous_classes, current_classes):
     Returns:
         Floating point number representing the information gain.
     """
-    
+
     total = 0
     count = 0
     if len(previous_classes) == 0:
         return 0.
     for c in current_classes:
-        #print c, gini_impurity(c)
-        total +=  gini_impurity(c) * len(c) / len(previous_classes)
+        # print c, gini_impurity(c)
+        total += gini_impurity(c) * len(c) / len(previous_classes)
         count += 1
     gini_prev = gini_impurity(previous_classes)
-    #print "gini_prev", gini_prev
+    # print "gini_prev", gini_prev
     gain = gini_prev - total
-    return gain	
+    return gain
 
+
+def entropy(class_vector):
+    """Compute the entropy for a list
+    of classes (given as either 0 or 1)."""
+    list1_ = list(class_vector)
+    if len(list1_)>0:
+        positive = float(list1_.count(1))
+        negative = float(list1_.count(0))
+        p = float(positive / (positive + negative))
+        if p==0 or p==1:
+            return 0
+        else:
+            logs = np.log2([p,1-p])
+            result = -p*logs[0] - (1-p)*logs[1]
+            return result
+    return 0
+
+def information_gain(previous_classes, current_classes ):
+    """Compute the information gain between the
+    previous and current classes (each
+    a list of 0 and 1 values)."""
+    remainder = 0
+    num_examples = float(len(previous_classes))
+    prev_entropy = entropy(previous_classes)
+
+    for classification in current_classes:
+        class_examples = float(len(classification))
+        class_entropy =  entropy(np.array(classification))
+        remainder+= (class_examples/num_examples)*class_entropy
+
+    return prev_entropy - remainder
 
 class DecisionTree:
     """Class for automatic tree-building and classification."""
@@ -273,7 +305,7 @@ class DecisionTree:
 
         self.root = self.__build_tree__(features, classes)
 
-    def __build_tree__(self, features, classes, depth=0):
+    def __build_tree__(self, features, classes, depth=0, min_sample_split=2):
         """Build tree that automatically finds the decision functions.
 
         Args:
@@ -287,9 +319,10 @@ class DecisionTree:
 
         # TODO: finish this.
         use_median = True
+        # print 'Feature', np.shape(features),'Class', np.shape(classes)
         if len(set(classes)) == 1:
             return DecisionNode(None, None, None, classes[0])
-        elif depth >= self.depth_limit:
+        elif depth >= self.depth_limit or len(classes) <= min_sample_split:
             most_freq_class = max(set(classes), key=classes.count)
             return DecisionNode(None, None, None, most_freq_class)
         else:
@@ -299,37 +332,43 @@ class DecisionTree:
             alpha_threshold = -1
             for index in range(0, features.shape[1]):
                 alpha = np.array(features[:, index])
-                #alpha_sorted = sorted(alpha)
-                if len(set(alpha))==1:
+                # alpha_sorted = sorted(alpha)
+                if len(set(alpha)) == 1:
                     most_freq_class = max(set(classes), key=classes.count)
                     return DecisionNode(None, None, None, most_freq_class)
-                if use_median:
-                    alpha_sorted = sorted(alpha)
-                    threshold = np.median(alpha_sorted)
-                else:
-                    threshold = np.mean(alpha)
-                curr_classes = [[],[]]
-                classes_ = copy.deepcopy(np.array(classes))
-                curr_classes[0] = classes_[np.where(alpha < threshold)].tolist()
-                curr_classes[1] = classes_[np.where(alpha >= threshold)].tolist()
-                alpha_gain = gini_gain(classes, curr_classes)
-                if alpha_gain > alpha_gain_best:
-                    alpha_best = index
-                    alpha_gain_best = alpha_gain
-                    alpha_threshold = threshold
+                alpha_sorted = sorted(alpha)
+                threshold1 = np.median(alpha_sorted)
+                threshold2 = np.mean(alpha)
+                thresh = [threshold1, threshold2]
+                for i in range(2):
+                    threshold = thresh[i]
+                    curr_classes = [[], []]
+                    classes_ = copy.deepcopy(np.array(classes))
+                    # print np.shape(classes_),'th:', threshold, 'wh:', np.where(alpha < threshold)
+                    curr_classes[0] = classes_[np.where(alpha < threshold)].tolist()
+                    curr_classes[1] = classes_[np.where(alpha >= threshold)].tolist()
+                    alpha_gain = gini_gain(classes, curr_classes)
+                    if alpha_gain > alpha_gain_best:
+                        alpha_best = index
+                        alpha_gain_best = alpha_gain
+                        alpha_threshold = threshold
 
             node = DecisionNode(None, None, lambda feature: feature[alpha_best] < alpha_threshold)
-            
-            left_ind = np.where(features[:,alpha_best] < alpha_threshold)
-            left_features = features[left_ind]
-            left_classes = np.array(classes)[left_ind].tolist()
-            node.left = self.__build_tree__(left_features, left_classes, depth)
-            
-            right_ind = np.where(features[:,alpha_best] >= alpha_threshold)
-            right_features = features[right_ind]
-            right_classes = np.array(classes)[right_ind].tolist()
-            node.right = self.__build_tree__(right_features, right_classes, depth)
-            
+
+            left_ind = np.where(features[:, alpha_best] < alpha_threshold)
+            right_ind = np.where(features[:, alpha_best] >= alpha_threshold)
+
+            if left_ind[0].shape[0] < 1 or right_ind[0].shape[0] < 1:
+                most_freq_class = max(set(classes), key=classes.count)
+                return DecisionNode(None, None, None, most_freq_class)
+            else:
+                left_features = features[left_ind]
+                left_classes = np.array(classes)[left_ind].tolist()
+                node.left = self.__build_tree__(left_features, left_classes, depth)
+                right_features = features[right_ind]
+                right_classes = np.array(classes)[right_ind].tolist()
+                node.right = self.__build_tree__(right_features, right_classes, depth)
+
             return node
 
     def classify(self, features):
@@ -380,6 +419,7 @@ def generate_k_folds(dataset, k):
         folds.append((traning_data, test_data))
     return folds
 
+
 class RandomForest:
     """Random forest classification."""
 
@@ -413,16 +453,17 @@ class RandomForest:
         features_ = np.array(features)
         for index in range(self.num_trees):
             num_examples = int(self.example_subsample_rate * features_.shape[0])
-            #np.random.seed(100)
             sample_idx = np.random.choice(features_.shape[0], num_examples, replace=True)
             sample_features = features_[sample_idx]
             sample_classes = classes_[sample_idx]
             num_attrs = int(self.attr_subsample_rate * features_.shape[1])
             sample_idx_node = np.random.choice(features_.shape[1], num_attrs, replace=False)
-            sample_features_node = sample_features[:,sample_idx_node]
+            # sample_idx_node = np.random.randint(features_.shape[1], size=num_attrs)
+            sample_features_node = sample_features[:, sample_idx_node]
+            sample_classes_node = sample_classes[sample_idx_node]
 
             tree = DecisionTree(self.depth_limit)
-            tree.fit(sample_features_node,sample_classes)
+            tree.fit(sample_features_node, sample_classes)
             self.trees.append(tree)
             self.feat_idx.append(sample_idx_node)
 
@@ -435,17 +476,22 @@ class RandomForest:
 
         # TODO: finish this.
         output = []
+        classes_list = []
+        most_freq_class = []
         for index, tree in enumerate(self.trees):
-            node_features = features[:,self.feat_idx[index]]
+            node_features = features[:, self.feat_idx[index]]
             output.append(tree.classify(node_features))
 
-        most_freq_class = np.array(np.amax(output, axis = 0))
+        most_freq_class = np.array(max(list(output), key=list(output).count))
+        # most_freq_class = np.array(np.amax(output, axis = 0))
         return most_freq_class
+
 
 class ChallengeClassifier:
     """Challenge Classifier used on Challenge Training Data."""
 
-    def __init__(self):
+    def __init__(self, num_trees=5, depth_limit=float('inf'), example_subsample_rate=0.7,
+                 attr_subsample_rate=0.75):
         """Create challenge classifier.
 
         Initialize whatever parameters you may need here.
@@ -454,7 +500,12 @@ class ChallengeClassifier:
         """
 
         # TODO: finish this.
-        raise NotImplemented()
+        self.trees = []
+        self.feat_idx = []
+        self.num_trees = num_trees
+        self.depth_limit = depth_limit
+        self.example_subsample_rate = example_subsample_rate
+        self.attr_subsample_rate = attr_subsample_rate
 
     def fit(self, features, classes):
         """Build the underlying tree(s).
@@ -467,7 +518,22 @@ class ChallengeClassifier:
         """
 
         # TODO: finish this.
-        raise NotImplemented()
+        classes_ = np.asarray(classes)
+        features_ = np.array(features)
+        for index in range(self.num_trees):
+            num_examples = int(self.example_subsample_rate * features_.shape[0])
+            sample_idx = np.random.choice(features_.shape[0], num_examples, replace=True)
+            sample_features = features_[sample_idx]
+            sample_classes = classes_[sample_idx]
+            num_attrs = int(self.attr_subsample_rate * features_.shape[1])
+            sample_idx_node = np.random.choice(features_.shape[1], num_attrs, replace=False)
+            sample_features_node = sample_features[:, sample_idx_node]
+            sample_classes_node = sample_classes[sample_idx_node]
+
+            tree = DecisionTree(self.depth_limit)
+            tree.fit(sample_features_node, sample_classes)
+            self.trees.append(tree)
+            self.feat_idx.append(sample_idx_node)
 
     def classify(self, features):
         """Classify a list of features.
@@ -482,7 +548,15 @@ class ChallengeClassifier:
         """
 
         # TODO: finish this.
-        raise NotImplemented()
+        output = []
+        classes_list = []
+        most_freq_class = []
+        for index, tree in enumerate(self.trees):
+            node_features = features[:, self.feat_idx[index]]
+            output.append(tree.classify(node_features))
+
+        most_freq_class = np.array(max((list(output)), key=list(output).count))
+        return most_freq_class
 
 
 class Vectorization:
@@ -571,7 +645,9 @@ class Vectorization:
         """
 
         # TODO: finish this.
-        raise NotImplemented()
+        top_100 = data[0:100, :]
+        sum_ = np.sum(top_100, axis=1)
+        return (np.max(sum_), np.argmax(sum_))
 
     def non_vectorized_flatten(self, data):
         """Display occurrences of positive numbers using loops.
@@ -617,9 +693,12 @@ class Vectorization:
         """
 
         # TODO: finish this.
-        raise NotImplemented()
-        
+        data_ = data[np.where(data > 0)]
+        data_u, count = np.unique(data_, return_counts=True)
+        return list(zip(data_u, count))
+
+
 def return_your_name():
     # return your name
     # TODO: finish this
-    raise NotImplemented()
+    return 'Sridhar Sampath'
