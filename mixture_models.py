@@ -8,7 +8,6 @@ from scipy.misc import logsumexp
 from helper_functions import image_to_matrix, matrix_to_image, \
                              flatten_image_matrix, unflatten_image_matrix, \
                              image_difference
-import time
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
@@ -165,67 +164,6 @@ class GaussianMixtureModel:
         self.variances = np.array([1] * self.num_components)
         self.mixing_coefficients = np.array([1.0 * 1 / self.num_components] * self.num_components)
 
-    def get_k_array(self):
-        k_array = np.zeros((self.num_components, self.image_matrix.shape[0], self.image_matrix.shape[1]))
-        for i in xrange(self.num_components):
-            k_array[i] = (self.mixing_coefficients[i] / np.sqrt(self.variances[i] * 2 * np.pi)) * np.exp(-((self.image_matrix - self.means[i]) ** 2) / (2 * self.variances[i]))
-        return k_array
-
-    def train_model_(self, convergence_function=default_convergence):
-        """
-        Train the mixture model
-        using the expectation-maximization
-        algorithm. Since each Gaussian is
-        a combination of mean and variance,
-        this will fill self.means and
-        self.variances, plus
-        self.mixing_coefficients, with
-        the values that maximize
-        the overall model likelihood.
-
-        params:
-        convergence_function = function, returns True if convergence is reached
-        """
-        # TODO: finish this
-        converge = False
-        image_matrix = self.image_matrix.reshape(1, -1)
-        while not converge:
-            #k_array = self.get_k_array().reshape(self.num_components, 1, -1)
-            #k_sums = k_array.sum(axis=0)
-            #respons = k_array / k_sums
-            #n_k1 = respons.sum(axis=2)
-            #means1 = (respons * image_matrix).sum(axis=2) / n_k1
-            #variances1 = (((image_matrix - means1) ** 2).reshape(respons.shape) * respons).sum(axis=2) / n_k1
-            #mixing_coefficients1 = n_k1 / image_matrix.shape[1]
-
-            numerator = self.e_step_numerator()
-            x = flatten_image_matrix(self.image_matrix)[:, 0]
-            x = x.reshape(x.shape[0], 1)
-
-            probs = np.exp(-1. * (x - self.means) ** 2 / (self.variances * 2)) / (2 * np.pi * self.variances) ** 0.5
-            weighted_probs = probs * self.mixing_coefficients
-
-            denominator = np.sum(numerator, axis=1).reshape(numerator.shape[0], 1)
-            gamma = numerator / denominator
-
-            gamma1 = weighted_probs / np.sum(weighted_probs, axis=1).reshape(weighted_probs.shape[0], 1)
-
-            # M step
-            N = gamma1.shape[0]
-            Nk = np.sum(gamma1, axis=0)
-
-            means_new = np.sum(gamma1 * x, axis=0) / Nk
-
-            delta = x - means_new
-            var_new = np.sum(gamma1 * (delta ** 2), axis=0) / Nk
-
-
-            n_k = gamma.sum(axis=0)
-            self.means = np.sum(gamma * self.flattened_image, axis=0) / n_k
-            x = self.flattened_image - self.means
-            self.variances = np.sum(gamma * (x**2), axis=0) / n_k
-            mix_coef_new = Nk / N
-
     def train_model(self, convergence_function=default_convergence):
         """
         Train the mixture model
@@ -257,14 +195,6 @@ class GaussianMixtureModel:
             conv_ctr, convergence = convergence_function(prev_likelihood, curr_likelihood, conv_ctr)
             prev_likelihood = curr_likelihood
 
-
-    def e_step_numerator_(self):
-        arr =[]
-        for mean, var, mc in zip(self.means, self.variances, self.mixing_coefficients):
-            arr.append((mc / np.sqrt(var * 2 * np.pi)) * np.exp(-((self.flattened_image - mean) ** 2) / (2 * var)))
-        x1 = np.array(arr)
-        x = (self.mixing_coefficients / np.sqrt(self.variances * 2 * np.pi)) * np.exp(-((self.flattened_image - self.means) ** 2) / (2 * self.variances))
-        return x
 
     def e_step_numerator(self):
 
@@ -351,7 +281,6 @@ class GaussianMixtureModel:
             self.train_model()
             likelihood = self.likelihood()
             if best_likelihood < likelihood:
-                print 'new likelihood: ' + str(likelihood)
                 best_likelihood = likelihood
                 best_segment = self.segment()
                 best_mean = self.means
