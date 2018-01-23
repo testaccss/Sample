@@ -1,4 +1,3 @@
 [submodule "Branch"]
 	path = Branch
 	url = https://github.com/testaccss/Branch.git
-  branch = master
