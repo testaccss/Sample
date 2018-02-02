@@ -1,0 +1,84 @@
+---
+title: "ac1"
+author: "Sridhar Sampath"
+date: "2 February 2018"
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+survey = read.csv('ac1_survey.csv', stringsAsFactors=FALSE)
+#print('Dimensions of the data')
+#dim(survey)
+#print('Feature (Column) Information')
+#names(survey)
+#print('Sample data')
+#str(survey)
+```
+
+```{r}
+# Data cleaning...
+survey$What.is.your.favorite.number. = as.numeric(survey$What.is.your.favorite.number.)
+survey$How.many.pages.are.there.in.that.book. = as.numeric(survey$How.many.pages.are.there.in.that.book.)
+survey$How.much.total.rainfall.did.your.city.region.receive.in.2016...in.inches. = as.numeric(survey$How.much.total.rainfall.did.your.city.region.receive.in.2016...in.inches.)
+survey$What.was.the.maximum.temperature.in.your.area.yesterday. = as.numeric(survey$What.was.the.maximum.temperature.in.your.area.yesterday.)
+```
+
+```{r}
+print('Data dimension of fav number before cleaning ')
+length(survey$What.is.your.favorite.number.)
+survey.fn = na.omit(survey$What.is.your.favorite.number.)
+survey.fn = survey.fn[is.finite(survey.fn)]
+print('Data dimension of fav number after cleaning')
+length(survey.fn)
+```
+
+```{r}
+print('Data dimension of pages before cleaning ')
+length(survey$How.many.pages.are.there.in.that.book.)
+survey.pg = na.omit(survey$How.many.pages.are.there.in.that.book.)
+survey.pg = survey.pg[is.finite(survey.pg)]
+print('Data dimension of pages after cleaning')
+length(survey.pg)
+```
+```{r}
+print('Data dimension of max temp before cleaning ')
+length(survey$What.was.the.maximum.temperature.in.your.area.yesterday.)
+survey.mt = na.omit(survey$What.was.the.maximum.temperature.in.your.area.yesterday.)
+survey.mt = survey.mt[is.finite(survey.mt)]
+print('Data dimension of max temp after cleaning')
+length(survey.mt)
+```
+```{r}
+fn = survey$What.is.your.favorite.number.
+pg = survey$How.many.pages.are.there.in.that.book.
+rl = survey$How.much.total.rainfall.did.your.city.region.receive.in.2016...in.inches.
+df = data.frame(fav_num = fn, page_num = pg, rain_fall = rl, stringsAsFactors=FALSE)
+df = as.data.frame(df)
+df.filter = na.omit(df)
+df.filter = df.filter[sapply(df.filter$fav_num, is.finite),]
+#df2 = df.filter[sapply(df.filter$page_num, is.finite),2]
+#df3 = df.filter[sapply(df.filter$rain_fall, is.finite),3]
+#df.filter = df.filter[is.finite(df.filter)]
+fn = df.filter$fav_num
+pg = df.filter$page_num
+rl = df.filter$rain_fall
+mat_df = as.matrix(cbind2(fn, pg, rl))
+```
+
+```{r}
+#install.packages("corrplot")
+library(corrplot)
+cor(df.filter)
+#df = data.frame(survey.fn, survey.mt, survey.pg)
+#cor.test(fn,pg)
+#cor.test(fn,rl)
+#cor.test(rl,pg)
+corrplot(cor(df.filter), method = "color")
+```
+
