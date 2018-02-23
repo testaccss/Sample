@@ -66,7 +66,7 @@ Load any R packages that you will need to use. You can come back to this chunk, 
 ```{r}
 library(ggplot2)
 library(GGally)
-library(tm)
+#library(tm)
 library(reshape2)
 # install.packages("magrittr")
 # Instead of using transformation, magrittr package is used to group the data as per requirement.
@@ -163,7 +163,7 @@ The column `Genre` represents a list of genres associated with the movie in a st
 
 For example, if there are a total of 3 genres: Drama, Comedy, and Action, a movie that is both Action and Comedy should be represented by a binary vector <0, 1, 1>. Note that you need to first compile a dictionary of all possible genres and then figure out which movie has which genres (you can use the R `tm` package to create the dictionary).
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 # TODO: Replace Genre with a collection of binary columns
 Genre_corpus = Corpus(VectorSource(df2$Genre))
 # Convert corpus into data matrix contain matrix info
@@ -178,7 +178,7 @@ df2$Genre = NULL
 
 Plot the relative proportions of movies having the top 10 most common genres.
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 # TODO: Select movies from top 10 most common genres and plot their relative proportions
 count_genre = colSums(df_Genre)
 topmost_genre = sort(count_genre, decreasing = TRUE)[1:10]
@@ -195,7 +195,7 @@ barplot(relative_prop, xlab = "Genre", ylab = "Relative Proportion (%)", col = t
 
 Examine how the distribution of `Runtime` changes across genres for the top 10 most common genres.
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 # TODO: Plot Runtime distribution for top 10 most common genres
 df_Genre_topmost = subset(df2, !is.na(Runtime))
 df_Genre_topmost = df_Genre_topmost[,c(names(topmost_genre),'Runtime')]
@@ -234,14 +234,19 @@ _Note: Do not remove the rows with `Gross == NA` at this point, just use this a 
 
 ```{r}
 # TODO: Remove rows with Year/Date/Released mismatch
-n_na_gross = length(df2$Gross[!is.na(df2$Gross)])
-cat('The number of gross value present:', n_na_gross)
+n_valid_gross = nrow(subset(df2, Gross > 0))
+cat('The number of gross value present:', n_valid_gross)
 df2$Released_Year = as.numeric(substr(df2$Released,1,4))
-df2_rel_year = subset(df2, (df2$Released_Year == df2$Year))
-df2_rel_year_subset = length(df2$Gross[!is.na(df2$Gross)])
-df2_date_year = subset(df2, (df2$Date == df2$Year))
-cat('\nThe number of release and year matching:', nrow(df2_rel_year))
+
+df2_date_year = subset(df2, (df2$Date == df2$Year) & Gross > 0)
 cat('\nThe number of date and year matching:', nrow(df2_date_year))
+df2_date_year_rel = subset(df2, ((df2$Date == df2$Year) & (df2$Released_Year == df2$Year) & (df2$Released_Year == df2$Date)) & Gross > 0)
+cat('\nThe number of release, date and year matching:', nrow(df2_date_year_rel))
+
+df2_rel_year = subset(df2, (abs(df2$Released_Year - df2$Year) <= 1) & Gross > 0)
+cat('\nThe number of release and year matching with deviation of 1 year with Gross > 0:', nrow(df2_rel_year))
+df2_rel_year = subset(df2, (abs(df2$Released_Year - df2$Year) <= 0) & Gross > 0)
+cat('\nThe number of release and year matching with Gross > 0:', nrow(df2_rel_year))
 ```
 
 **Q**: What is your precise removal logic, and how many rows remain in the resulting dataset?
@@ -256,6 +261,20 @@ _Note: To get a meaningful relationship, you may have to partition the movies in
 
 ```{r}
 # TODO: Investigate if Gross Revenue is related to Budget, Runtime or Genre
+sub_df= subset(df2, Budget>0 & Gross>0)
+ggplot(sub_df, aes(x=Budget, y=Gross)) + geom_point(alpha=1/5) + geom_smooth(se=F)
+
+sub_df= subset(df2, Runtime>0 & Gross>0)
+ggplot(sub_df, aes(x=Runtime, y=Gross)) + geom_point(alpha=1/5) + geom_smooth(se=F)
+
+df2$RuntimeRange = df2$Runtime-(df2$Runtime %% 60)
+ggplot(df2, aes(RuntimeRange, Gross, color=as.factor(RuntimeRange))) + geom_point() + labs(title = "Runtime vs Gross", color = "RuntimeRange") + xlim(0,320)
+
+df2_gross_genre = df2[,c(names(topmost_genre),'Gross')]
+df2_gross_genre_melt = melt(data = df2_gross_genre, id.vars = "Gross", measure.vars = c(names(top_genre)))
+df2_gross_genre_melt = subset(df_Genre_topmost_melt , value!=0)
+ggplot(df2_gross_genre_melt, aes(Gross, fill = variable)) + geom_histogram() + xlim(0, 250)
+ggplot(df2_gross_genre_melt, aes(Gross, fill = variable)) + geom_histogram() + facet_grid(variable~.) + xlim(0, 250)
 ```
 
 **Q**: Did you find any observable relationships or combinations of Budget/Runtime/Genre that result in high Gross revenue? If you divided the movies into different subsets, you may get different answers for them - point out interesting ones.
@@ -274,6 +293,53 @@ _Note: The format of the `Awards` column is not standard; you may have to use re
 
 ```{r}
 # TODO: Convert Awards to 2 numeric columns: wins and nominations
+library(stringr)
+df2$Awards[df2$Awards == 'N/A'] = 0
+# https://stackoverflow.com/questions/43643805/find-the-number-corresponding-to-a-string-in-r
+# wins = str_extract_all(df2$Awards, "[0-9]+ wins")
+# https://www.regular-expressions.info/rlanguage.html
+
+find_wins=function(x){
+  wins=0
+  temp = gregexpr("[0-9]+ win", x)
+  # Test if the string contains the above expression
+  if(temp[[1]][1] != -1) {
+    phrase = regmatches(x, temp)
+    # Split the string and number
+    token = unlist(strsplit(phrase[[1]], " "))
+    # Convert string to integer and add to handle multiple number
+    # add funtion is used. eg: Nominated for 1 Oscar. Another 3 wins & 10 nomin
+    wins = wins + as.integer(token[1])
+  }
+  temp <- gregexpr("Won [0-9]+", x)
+  # Test if the string contains the above expression
+  if(temp[[1]][1] != -1) {
+    phrase = regmatches(x, temp)
+    token = unlist(strsplit(phrase[[1]], " "))
+    wins = wins + as.integer(token[2])
+  }
+  return(wins)
+}
+df2$Wins=sapply (df2$Awards, find_wins)
+
+find_nominations=function(x){
+  nomination=0
+  temp = gregexpr("[0-9]+ nomination", x)
+  if(temp[[1]][1] != -1) {
+    phrase = regmatches(x, temp)
+    token = unlist(strsplit(phrase[[1]], " "))
+    nomination = nomination + as.integer(token[1])
+  }
+  temp <- gregexpr("Nominated for [0-9]+", x)
+  if(temp[[1]][1] != -1) {
+    phrase = regmatches(x, temp)
+    token = unlist(strsplit(phrase[[1]], " "))
+    nomination = nomination + as.integer(token[3])
+  }
+  return(nomination)
+}
+#out=sapply (df2$Awards[75], find_nominations)
+df2$Nominations=sapply (df2$Awards, find_nominations)
 ```
 
 **Q**: How did you construct your conversion mechanism? How many rows had valid/non-zero wins or nominations?
@@ -282,6 +348,10 @@ _Note: The format of the `Awards` column is not standard; you may have to use re
 
 ```{r}
 # TODO: Plot Gross revenue against wins and nominations
+df_win_nom = data.frame(Gross=df2$Gross, Wins=df2$Wins, Nominations=df2$Nominations)
+ggpairs(df_win_nom)
+ggplot(df2, aes(y=Gross, x=Wins)) + geom_point(color="blue")
+ggplot(df2, aes(y=Gross, x=Nominations)) + geom_point(color="green")
 ```
 
 **Q**: How does the gross revenue vary by number of awards won and nominations received?
@@ -296,6 +366,41 @@ Investigate the pairwise relationships between these different descriptors using
 
 ```{r}
 # TODO: Illustrate how ratings from IMDb and Rotten Tomatoes are related
+df_rating =data.frame(
+  imdbRating=df2$imdbRating,
+  imdbVotes=df2$imdbVotes,
+  tomatoRating=df2$tomatoRating, 
+  tomatoMeter=df2$tomatoMeter, 
+  tomatoFresh=df2$tomatoFresh , 
+  tomatoRotten=df2$tomatoRotten,
+  tomatoReviews=df2$tomatoReviews,
+  tomatoUserRating=df2$tomatoUserRating,
+  tomatoUserReview=df2$tomatoUserReviews)
+#ggpairs(df_rating)
+qplot(y=imdbRating,x=tomatoFresh, data = df_rating,main=("imdbRating vs tomatoFresh"))+
+  stat_smooth(method = "loess", 
+              method.args = list(degree = 0),
+              span = 0.2,se = FALSE)
+# tomatofresh vs imdbVotes
+qplot(x=imdbVotes,y=tomatoFresh, data = df_rating,main=("imdbVotes vs tomatoFresh"))+
+  stat_smooth(method = "loess", 
+              method.args = list(degree = 0),
+              span = 0.2,se = FALSE)
+# tomatoRotten vs imdbRating
+qplot(y=imdbRating,x=tomatoRotten, data = df_rating,main=("imdbRating vs tomatoRotten"))+
+  stat_smooth(method = "loess", 
+              method.args = list(degree = 0),
+              span = 0.2,se = FALSE)
+# tomatoRotten vs imdbVotes
+qplot(x=imdbVotes,y=tomatoRotten, data = df_rating,main=("imdbVotes vs tomatoRotten"))+
+  stat_smooth(method = "loess", 
+              method.args = list(degree = 0),
+              span = 0.2,se = FALSE)
+# tomatoReviews vs imdbVotes
+qplot(x=imdbVotes,y=tomatoReviews, data = df_rating,main=("imdbVotes vs tomatoReviews"))+
+  stat_smooth(method = "loess", 
+              method.args = list(degree = 0),
+              span = 0.2,se = FALSE)
 ```
 
 **Q**: Comment on the similarities and differences between the user ratings of IMDb and the critics ratings of Rotten Tomatoes.
@@ -310,6 +415,20 @@ Study the relationship between ratings and awards using graphs (awards here refe
 
 ```{r}
 # TODO: Show how ratings and awards are related
+comb_awards = df2$Wins + df2$Nominations
+df_rating_award =data.frame(
+  imdbRating=df2$imdbRating,
+  tomatoRating=df2$tomatoRating, 
+  tomatoUserRating=df2$tomatoUserRating,
+  metascore=df2$Metascore,
+  awards=comb_awards)
+ggpairs(df_rating_award,cardinality_threshold=100)
+ggplot(df_rating_award, aes(x=imdbRating, y=awards))+geom_point(color="blue")
+ggplot(df_rating_award, aes(x=tomatoRating, y=awards))+geom_point(color="green")
+ggplot(df_rating_award, aes(x=tomatoUserRating, y=awards))+geom_point(color="purple")
+cor.test(df_rating_award$imdbRating, df_rating_award$awards)
+cor.test(df_rating_award$tomatoRating, df_rating_award$awards)
+cor.test(df_rating_award$tomatoUserRating, df_rating_award$awards)
 ```
 
 **Q**: How good are these ratings in terms of predicting the success of a movie in winning awards or nominations? Is there a high correlation between two variables?
